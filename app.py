@@ -37,7 +37,7 @@ def process_csv(file_path):
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             available_cols = ', '.join(df.columns.tolist())
-            return None, f"Error: Missing required columns: {', '.join(missing_columns)}\n\nAvailable columns in file: {available_cols}"
+            return None, f"Error: Missing required columns: {', '.join(missing_columns)}\n\nAvailable columns in file: {available_cols}", None, None
         
         # Filter 1: Remove rows where Vendor OR Country Destination is empty
         df = df[
@@ -48,7 +48,7 @@ def process_csv(file_path):
         ]
         
         if df.empty:
-            return None, "Error: No rows remaining after filtering. Please check your data."
+            return None, "Error: No rows remaining after filtering. Please check your data.", None, None
         
         # Convert Revenue, Cost, Profit to numeric (handle any string values)
         for col in ['Revenue', 'Cost', 'Profit']:
