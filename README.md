@@ -43,14 +43,14 @@ pip install -r requirements.txt
 Run the application with a single Docker command:
 
 ```bash
-docker build -t csv-processor . && docker run -d -p 7860:7860 --name csv-processor-app --rm -v $(pwd)/processed:/app/processed csv-processor
+docker build -t csv-processor . && docker run -d -p 9995:7860 --name csv-processor-app --rm -v $(pwd)/processed:/app/processed csv-processor
 ```
 
 **Command breakdown:**
 - `docker build -t csv-processor .`: Builds the Docker image with tag "csv-processor"
 - `&&`: Chains commands (runs second only if first succeeds)
 - `-d`: Runs container in detached mode (background)
-- `-p 7860:7860`: Maps port 7860 to access the web interface
+- `-p 9995:7860`: Maps host port 9995 to container port 7860 (access at http://localhost:9995)
 - `--name csv-processor-app`: Names the container
 - `--rm`: Automatically removes container when stopped
 - `-v $(pwd)/processed:/app/processed`: Mounts processed directory for file persistence
@@ -62,7 +62,7 @@ docker compose up -d --build
 ```
 
 **Access the application:**
-Open your browser at `http://localhost:7860`
+Open your browser at `http://localhost:9995`
 
 **Stop the container:**
 ```bash
@@ -78,7 +78,7 @@ docker stop csv-processor-app
 python app.py
 ```
 
-2. Open your web browser and navigate to the URL shown in the terminal (typically `http://localhost:7860`)
+2. Open your web browser and navigate to the URL shown in the terminal (typically `http://localhost:9995` for Docker, or `http://localhost:7860` for local development)
 
 3. Upload your CSV file using the file upload component
 
