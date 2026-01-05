@@ -100,11 +100,12 @@ Your CSV file must contain the following columns:
 ## Output Format
 
 The processed CSV will contain:
-- Only the required columns (Customer Relationships, Trunk Group, Country Destination, Vendor, Revenue, Cost, Profit)
+- Required columns: Customer Relationships, Trunk Group, Country Destination, Vendor, Revenue, Cost, Profit, **Profit %**
+- **Profit %**: Calculated as (Profit / Revenue) × 100 for each row and totals
 - Filtered rows (no empty Vendor/Country Destination)
 - OPS/IVG/PROXY 2 vendors with Revenue preserved but Cost set to 0 and Profit recalculated
-- Totals row after each Trunk Group (Revenue includes all vendors, Cost/Profit excludes OPS/IVG/PROXY 2)
-- 5 empty rows between each Trunk Group for spacing
+- Totals row after each Trunk Group + Country combination (includes Profit % for totals)
+- 5 empty rows between each Trunk Group + Country combination for spacing
 
 ## Technical Details
 

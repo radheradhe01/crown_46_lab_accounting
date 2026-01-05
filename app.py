@@ -78,6 +78,11 @@ def process_csv(file_path):
             
             # Add rows for this group
             for _, row in group_df.iterrows():
+                # Calculate profit percentage (Profit/Revenue * 100)
+                revenue_val = float(row['Revenue']) if pd.notna(row['Revenue']) and row['Revenue'] != '' else 0
+                profit_val = float(row['Profit']) if pd.notna(row['Profit']) and row['Profit'] != '' else 0
+                profit_pct = round((profit_val / revenue_val * 100), 2) if revenue_val != 0 else 0.0
+                
                 processed_rows.append({
                     'Customer Relationships': row['Customer Relationships'],
                     'Trunk Group': row['Trunk Group'],
@@ -85,13 +90,17 @@ def process_csv(file_path):
                     'Vendor': row['Vendor'],
                     'Revenue': row['Revenue'],
                     'Cost': row['Cost'],
-                    'Profit': row['Profit']
+                    'Profit': row['Profit'],
+                    'Profit %': profit_pct
                 })
             
             # Calculate totals for this Trunk Group + Country (round to 2 decimal places)
             total_revenue = round(group_df['Revenue'].sum(), 2)
             total_cost = round(group_df['Cost'].sum(), 2)
             total_profit = round(group_df['Profit'].sum(), 2)
+            
+            # Calculate profit percentage for totals
+            total_profit_pct = round((total_profit / total_revenue * 100), 2) if total_revenue != 0 else 0.0
             
             # Add totals row (empty for descriptive columns, totals for financial columns)
             processed_rows.append({
@@ -101,7 +110,8 @@ def process_csv(file_path):
                 'Vendor': '',
                 'Revenue': total_revenue,
                 'Cost': total_cost,
-                'Profit': total_profit
+                'Profit': total_profit,
+                'Profit %': total_profit_pct
             })
             
             # Add 5 empty rows between groups (except after the last group)
@@ -114,7 +124,8 @@ def process_csv(file_path):
                         'Vendor': '',
                         'Revenue': '',
                         'Cost': '',
-                        'Profit': ''
+                        'Profit': '',
+                        'Profit %': ''
                     })
         
         # Create DataFrame from processed rows
