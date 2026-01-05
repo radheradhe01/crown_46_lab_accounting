@@ -38,7 +38,40 @@ uv pip install --system "gradio>=4.0.0" "pandas>=2.0.0" "numpy>=1.24.0"
 pip install -r requirements.txt
 ```
 
+## Quick Start (One-Line Docker Command)
+
+Run the application with a single Docker command:
+
+```bash
+docker build -t csv-processor . && docker run -d -p 7860:7860 --name csv-processor-app --rm -v $(pwd)/processed:/app/processed csv-processor
+```
+
+**Command breakdown:**
+- `docker build -t csv-processor .`: Builds the Docker image with tag "csv-processor"
+- `&&`: Chains commands (runs second only if first succeeds)
+- `-d`: Runs container in detached mode (background)
+- `-p 7860:7860`: Maps port 7860 to access the web interface
+- `--name csv-processor-app`: Names the container
+- `--rm`: Automatically removes container when stopped
+- `-v $(pwd)/processed:/app/processed`: Mounts processed directory for file persistence
+
+**Alternative using Docker Compose:**
+
+```bash
+docker compose up -d --build
+```
+
+**Access the application:**
+Open your browser at `http://localhost:7860`
+
+**Stop the container:**
+```bash
+docker stop csv-processor-app
+```
+
 ## Usage
+
+### Local Development
 
 1. Start the application:
 ```bash
