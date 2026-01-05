@@ -6,10 +6,10 @@ A Gradio web application for processing customer CSV files with automated filter
 
 - **Column Removal**: Automatically removes unwanted columns (Attempts, Completions, Minutes, ASR %, NER %, Aloc, PPM, PRV, NEPR %, SDR %, MOS, PDD, LCR Depth)
 - **Row Filtering**: Removes rows where Vendor OR Country Destination is empty
-- **OPS/IVG Vendor Handling**: For vendors containing "OPS" or "IVG":
+- **OPS/IVG/PROXY 2 Vendor Handling**: For vendors containing "OPS", "IVG", or "PROXY 2":
   - Keeps the row and Revenue value
-  - Clears Cost and Profit (sets to 0)
-  - This means totals include Revenue from all vendors, but Cost/Profit only from non-OPS/IVG vendors
+  - Sets Cost to 0 and recalculates Profit (Profit = Revenue - 0 = Revenue)
+  - This means totals include Revenue from all vendors, but Cost/Profit only from non-OPS/IVG/PROXY 2 vendors
 - **Grouping & Totals**: Groups data by Trunk Group and calculates totals (Revenue, Cost, Profit) for each group
 - **Formatting**: Adds 5 empty rows between different Trunk Groups for better readability
 
@@ -102,8 +102,8 @@ Your CSV file must contain the following columns:
 The processed CSV will contain:
 - Only the required columns (Customer Relationships, Trunk Group, Country Destination, Vendor, Revenue, Cost, Profit)
 - Filtered rows (no empty Vendor/Country Destination)
-- OPS/IVG vendors with Revenue preserved but Cost/Profit set to 0
-- Totals row after each Trunk Group (Revenue includes all vendors, Cost/Profit excludes OPS/IVG)
+- OPS/IVG/PROXY 2 vendors with Revenue preserved but Cost set to 0 and Profit recalculated
+- Totals row after each Trunk Group (Revenue includes all vendors, Cost/Profit excludes OPS/IVG/PROXY 2)
 - 5 empty rows between each Trunk Group for spacing
 
 ## Technical Details

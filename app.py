@@ -11,7 +11,7 @@ def process_csv(file_path):
     Process CSV file according to business rules:
     1. Remove unwanted columns
     2. Filter rows (remove empty Vendor/Country Destination)
-    3. For OPS/IVG vendors: keep Revenue but clear Cost and Profit
+    3. For OPS/IVG/PROXY 2 vendors: keep Revenue but set Cost to 0 and recalculate Profit
     4. Group by Trunk Group and calculate totals
     5. Add spacing between groups
     """
@@ -54,15 +54,16 @@ def process_csv(file_path):
         for col in ['Revenue', 'Cost', 'Profit']:
             df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0)
         
-        # For rows where Vendor contains "OPS" or "IVG": 
+        # For rows where Vendor contains "OPS", "IVG", or "PROXY 2": 
         # - Set Cost to 0
         # - Recalculate Profit as Revenue - Cost (which equals Revenue since Cost = 0)
-        ops_ivg_mask = (
+        ops_ivg_proxy_mask = (
             df['Vendor'].astype(str).str.upper().str.contains('OPS', na=False) |
-            df['Vendor'].astype(str).str.upper().str.contains('IVG', na=False)
+            df['Vendor'].astype(str).str.upper().str.contains('IVG', na=False) |
+            df['Vendor'].astype(str).str.upper().str.contains('PROXY 2', na=False)
         )
-        df.loc[ops_ivg_mask, 'Cost'] = 0
-        df.loc[ops_ivg_mask, 'Profit'] = df.loc[ops_ivg_mask, 'Revenue']  # Profit = Revenue - 0 = Revenue
+        df.loc[ops_ivg_proxy_mask, 'Cost'] = 0
+        df.loc[ops_ivg_proxy_mask, 'Profit'] = df.loc[ops_ivg_proxy_mask, 'Revenue']  # Profit = Revenue - 0 = Revenue
         
         # Group by Trunk Group AND Country Destination together
         processed_rows = []
@@ -145,8 +146,8 @@ def process_csv(file_path):
         # Write to CSV (use empty string for NaN values)
         result_df.to_csv(output_path, index=False, na_rep='')
         
-        # Count OPS/IVG vendors for summary (need to recalculate after grouping)
-        ops_ivg_count = ops_ivg_mask.sum()
+        # Count OPS/IVG/PROXY 2 vendors for summary (need to recalculate after grouping)
+        ops_ivg_proxy_count = ops_ivg_proxy_mask.sum()
         
         # Create preview data (first 20 rows)
         preview_df = result_df.head(20).copy()
@@ -154,7 +155,7 @@ def process_csv(file_path):
         # Return file path, summary, and preview
         summary = "Processing complete!\n\n"
         summary += f"Total rows processed: {len(df)}\n"
-        summary += f"OPS/IVG vendors (Cost recalculated): {ops_ivg_count}\n"
+        summary += f"OPS/IVG/PROXY 2 vendors (Cost recalculated): {ops_ivg_proxy_count}\n"
         summary += f"Trunk Group + Country combinations: {len(unique_groups)}\n"
         summary += f"Output rows: {len(result_df)}\n"
         summary += f"\nFile saved as: {output_filename}"
@@ -322,7 +323,7 @@ with gr.Blocks(title="CSV Data Processor") as app:
     This application processes customer CSV files by:
     - Removing unwanted columns (Attempts, Completions, Minutes, ASR %, NER %, Aloc, PPM, PRV, NEPR %, SDR %, MOS, PDD, LCR Depth)
     - Filtering rows (removes rows with empty Vendor/Country Destination)
-    - For vendors containing 'OPS' or 'IVG': keeps Revenue but clears Cost and Profit
+    - For vendors containing 'OPS', 'IVG', or 'PROXY 2': keeps Revenue but sets Cost to 0 and recalculates Profit
     - Grouping by Trunk Group and calculating totals
     - Adding 5 empty rows between groups
     """)
