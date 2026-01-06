@@ -37,7 +37,7 @@ def process_csv(file_path):
         missing_columns = [col for col in required_columns if col not in df.columns]
         if missing_columns:
             available_cols = ', '.join(df.columns.tolist())
-            return None, f"Error: Missing required columns: {', '.join(missing_columns)}\n\nAvailable columns in file: {available_cols}", None, None
+            return None, f"### ❌ Error\nMissing required columns: {', '.join(missing_columns)}\n\nAvailable columns in file: {available_cols}", None, None
         
         # Filter 1: Remove rows where Vendor OR Country Destination is empty
         df = df[
@@ -48,7 +48,7 @@ def process_csv(file_path):
         ]
         
         if df.empty:
-            return None, "Error: No rows remaining after filtering. Please check your data.", None, None
+            return None, "### ❌ Error\nNo rows remaining after filtering. Please check your data.", None, None
         
         # Convert Revenue, Cost, Profit to numeric (handle any string values)
         for col in ['Revenue', 'Cost', 'Profit']:
@@ -160,24 +160,18 @@ def process_csv(file_path):
         # Count OPS/IVG/PROXY 2 vendors for summary (need to recalculate after grouping)
         ops_ivg_proxy_count = ops_ivg_proxy_mask.sum()
         
-        # Create preview data (first 20 rows)
-        preview_df = result_df.head(20).copy()
+        # Return file path, summary, and dataframe
+        summary = "### ✅ Processing Complete!\n\n"
+        summary += f"- **Total input rows:** {len(df)}\n"
+        summary += f"- **Recalculated Vendors (OPS/IVG/PROXY 2):** {ops_ivg_proxy_count}\n"
+        summary += f"- **Groups (Trunk + Country):** {len(unique_groups)}\n"
+        summary += f"- **Output rows:** {len(result_df)}\n"
+        summary += f"\nFile saved as: `{output_filename}`"
         
-        # Return file path, summary, and preview
-        summary = "Processing complete!\n\n"
-        summary += f"Total rows processed: {len(df)}\n"
-        summary += f"OPS/IVG/PROXY 2 vendors (Cost recalculated): {ops_ivg_proxy_count}\n"
-        summary += f"Trunk Group + Country combinations: {len(unique_groups)}\n"
-        summary += f"Output rows: {len(result_df)}\n"
-        summary += f"\nFile saved as: {output_filename}"
-        
-        # Convert preview to HTML table for better display
-        preview_html = preview_df.to_html(index=False, classes="preview-table", table_id="preview-table")
-        
-        return str(output_path), summary, preview_html, result_df
+        return str(output_path), summary, None, result_df
         
     except Exception as e:
-        return None, f"Error processing file: {str(e)}", None, None
+        return None, f"### ❌ Error processing file\n{str(e)}", None, None
 
 
 def process_file_interface(file):
@@ -185,9 +179,9 @@ def process_file_interface(file):
     Gradio interface function for processing uploaded file
     """
     if file is None:
-        return None, "Please upload a CSV file first.", None, get_processed_files_list()
+        return None, "### ⚠️ Warning\nPlease upload a CSV file first.", None, get_processed_files_list()
     
-    output_path, message, preview_html, result_df = process_csv(file.name)
+    output_path, message, _, result_df = process_csv(file.name)
     
     if output_path is None:
         return None, message, None, get_processed_files_list()
@@ -195,7 +189,7 @@ def process_file_interface(file):
     # Get updated list of processed files
     files_list = get_processed_files_list()
     
-    return output_path, message, preview_html, files_list
+    return output_path, message, result_df, files_list
 
 
 def get_processed_files_list():
@@ -290,7 +284,7 @@ def delete_processed_file(filename, confirm):
     Delete a processed file with confirmation
     """
     if not confirm:
-        return get_processed_files_list(), "Deletion cancelled. Please confirm to delete."
+        return get_processed_files_list(), "### ⚠️ Deletion Cancelled\nPlease check the confirmation box to proceed."
     
     processed_dir = Path("processed")
     file_path = processed_dir / filename
@@ -299,119 +293,139 @@ def delete_processed_file(filename, confirm):
         try:
             file_path.unlink()
             updated_list = get_processed_files_list()
-            return updated_list, f"✅ File '{filename}' deleted successfully."
+            return updated_list, f"### ✅ Success\nFile `{filename}` has been deleted."
         except Exception as e:
-            return get_processed_files_list(), f"❌ Error deleting file: {str(e)}"
+            return get_processed_files_list(), f"### ❌ Error\nCould not delete file: {str(e)}"
     
-    return get_processed_files_list(), f"❌ File '{filename}' not found."
+    return get_processed_files_list(), f"### ❌ Error\nFile `{filename}` not found."
 
 
-# Create Gradio interface
+# Custom CSS for UI polish
 custom_css = """
-.preview-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 12px;
-    margin: 10px 0;
+footer {visibility: hidden}
+.gr-button-primary {
+    background: linear-gradient(90deg, #4f46e5 0%, #3b82f6 100%);
+    border: none;
 }
-.preview-table th, .preview-table td {
-    border: 1px solid #ddd;
-    padding: 6px;
-    text-align: left;
-}
-.preview-table th {
-    background-color: #f2f2f2;
-    font-weight: bold;
-}
-.preview-table tr:nth-child(even) {
-    background-color: #f9f9f9;
+.gr-form {
+    background-color: transparent !important;
+    border: none !important;
 }
 """
 
+# Theme configuration
+theme = gr.themes.Soft(
+    primary_hue="indigo",
+    secondary_hue="slate",
+    neutral_hue="slate",
+    font=[gr.themes.GoogleFont("Inter"), "ui-sans-serif", "system-ui", "sans-serif"]
+).set(
+    button_primary_background_fill="*primary_600",
+    button_primary_background_fill_hover="*primary_700",
+    button_secondary_background_fill="*neutral_200",
+    button_secondary_background_fill_hover="*neutral_300"
+)
+
 with gr.Blocks(title="CSV Data Processor") as app:
-    gr.Markdown("# CSV Data Processing Application")
-    gr.Markdown("""
-    This application processes customer CSV files by:
-    - Removing unwanted columns (Attempts, Completions, Minutes, ASR %, NER %, Aloc, PPM, PRV, NEPR %, SDR %, MOS, PDD, LCR Depth)
-    - Filtering rows (removes rows with empty Vendor/Country Destination)
-    - For vendors containing 'OPS', 'IVG', or 'PROXY 2': keeps Revenue but sets Cost to 0 and recalculates Profit
-    - Grouping by Trunk Group and calculating totals
-    - Adding 5 empty rows between groups
-    """)
     
     with gr.Row():
-        with gr.Column():
-            file_input = gr.File(
-                label="Upload CSV File",
-                file_types=[".csv"],
-                type="filepath"
-            )
-            process_btn = gr.Button("Process CSV", variant="primary")
-        
-        with gr.Column():
-            status_output = gr.Textbox(
-                label="Processing Status",
-                lines=6,
-                interactive=False
-            )
-            file_output = gr.File(
-                label="Download Processed CSV",
-                type="filepath"
-            )
+        with gr.Column(scale=1):
+            gr.Markdown("# 📊 CSV Data Processor")
+            gr.Markdown("Transform and analyze your customer data with precision.")
     
-    # Preview section
-    with gr.Row():
-        with gr.Column():
-            gr.Markdown("### 📊 Data Preview (First 20 rows)")
-            preview_output = gr.HTML(
-                label="Preview",
-                value="<p style='text-align: center; color: #666;'>Upload and process a file to see preview</p>"
-            )
-        
-        with gr.Column():
-            gr.Markdown("### 📁 Processed Files History")
-            files_dataframe = gr.Dataframe(
-                label="All Processed Files",
-                headers=["Filename", "Created", "Size"],
-                interactive=False,
-                value=get_processed_files_dataframe(),
-                wrap=True
-            )
-            files_list_output = gr.Textbox(
-                label="Files List (Text)",
-                visible=False,
-                value=get_processed_files_list()
-            )
+    with gr.Tabs() as tabs:
+        # ==================== TAB 1: PROCESS DATA ====================
+        with gr.Tab("Process Data", id="tab_process"):
+            with gr.Row():
+                with gr.Column(scale=1):
+                    # Input Section
+                    with gr.Group():
+                        gr.Markdown("### 1. Upload File")
+                        file_input = gr.File(
+                            label="Drop CSV here or click to upload",
+                            file_types=[".csv"],
+                            type="filepath",
+                            height=100
+                        )
+                        process_btn = gr.Button("🚀 Process CSV Data", variant="primary", size="lg")
+
+                with gr.Column(scale=1):
+                    # Status & Result Section
+                    with gr.Group():
+                        gr.Markdown("### 2. Results")
+                        status_output = gr.Markdown(value="Waiting for input...")
+                        file_output = gr.File(label="Download Result", type="filepath", interactive=False)
             
-            selected_filename = gr.Dropdown(
-                label="Select File",
-                choices=get_processed_files_dropdown(),
-                interactive=True,
-                value=None
-            )
+            # Preview Section
+            with gr.Row():
+                with gr.Column():
+                    gr.Markdown("### 3. Data Preview")
+                    preview_output = gr.Dataframe(
+                        label="Processed Data View",
+                        interactive=False,
+                        wrap=True
+                        # height argument removed for compatibility with new Gradio versions if needed,
+                        # but standard Gradio usually supports it. The error was TypeError: Dataframe.__init__() got an unexpected keyword argument 'height'
+                        # which suggests the installed Gradio version (6.x) changed the API.
+                        # I'll rely on default height or CSS.
+                    )
+
+        # ==================== TAB 2: FILE ARCHIVE ====================
+        with gr.Tab("File Archive", id="tab_archive"):
+            gr.Markdown("### 📂 Manage Processed Files")
             
             with gr.Row():
-                download_file_btn = gr.Button("⬇️ Download Selected File", variant="primary")
-                download_file_output = gr.File(label="Download File", visible=False)
-            
-            with gr.Row():
-                delete_confirm_checkbox = gr.Checkbox(
-                    label="⚠️ I confirm I want to delete this file",
-                    value=False
-                )
-                delete_file_btn = gr.Button("🗑️ Delete Selected File", variant="stop")
-            
-            delete_status = gr.Textbox(
-                label="Status",
-                interactive=False,
-                visible=True
-            )
+                # Left Column: File List
+                with gr.Column(scale=2):
+                    files_dataframe = gr.Dataframe(
+                        label="Available Files",
+                        headers=["Filename", "Created", "Size"],
+                        interactive=False,
+                        value=get_processed_files_dataframe(),
+                        wrap=True
+                    )
+                    refresh_btn = gr.Button("🔄 Refresh List", variant="secondary", size="sm")
+
+                # Right Column: Actions
+                with gr.Column(scale=1):
+                    with gr.Group():
+                        gr.Markdown("### Actions")
+
+                        selected_filename = gr.Dropdown(
+                            label="Select File to Manage",
+                            choices=get_processed_files_dropdown(),
+                            interactive=True,
+                            value=None
+                        )
+
+                        download_file_btn = gr.Button("⬇️ Download", variant="primary")
+                        download_file_output = gr.File(label="Download Link", visible=False)
+
+                        gr.HTML("<hr style='margin: 20px 0; opacity: 0.5;'>")
+
+                        gr.Markdown("#### Danger Zone")
+                        delete_confirm_checkbox = gr.Checkbox(
+                            label="I confirm I want to delete this file",
+                            value=False
+                        )
+                        delete_file_btn = gr.Button("🗑️ Delete File", variant="stop")
+
+                        action_status = gr.Markdown(value="")
+
+                        # Hidden state for file list text (used for logic if needed)
+                        files_list_output = gr.Textbox(visible=False, value=get_processed_files_list())
+
+    # ==================== EVENT WIRING ====================
     
-    # Function to update dropdown and dataframe
+    # Helper to update file lists
     def update_files_display():
-        return get_processed_files_dataframe(), gr.update(choices=get_processed_files_dropdown()), get_processed_files_list()
-    
-    # Connect the process button
+        return (
+            get_processed_files_dataframe(),
+            gr.update(choices=get_processed_files_dropdown()),
+            get_processed_files_list()
+        )
+
+    # Process Button Logic
     process_btn.click(
         fn=process_file_interface,
         inputs=file_input,
@@ -421,61 +435,50 @@ with gr.Blocks(title="CSV Data Processor") as app:
         inputs=None,
         outputs=[files_dataframe, selected_filename, files_list_output]
     )
-    
-    # Download file functionality
-    def handle_download(filename):
-        if not filename:
-            return None, "⚠️ Please select a file from the table above."
-        file_path = download_processed_file(filename)
-        if file_path:
-            return file_path, f"✅ Ready to download: {filename}"
-        return None, f"❌ File '{filename}' not found."
-    
-    download_file_btn.click(
-        fn=handle_download,
-        inputs=selected_filename,
-        outputs=[download_file_output, delete_status]
-    )
-    
-    # Delete file functionality with confirmation
-    def handle_delete(filename, confirm, current_list):
-        if not filename:
-            df, dropdown = update_files_display()[:2]
-            return current_list, df, dropdown, "⚠️ Please select a file from the dropdown above."
-        
-        if not confirm:
-            df, dropdown = update_files_display()[:2]
-            return current_list, df, dropdown, "⚠️ Please check the confirmation box to delete the file."
-        
-        updated_list, message = delete_processed_file(filename, confirm)
-        updated_df, updated_dropdown, _ = update_files_display()
-        # Reset confirmation checkbox and clear selection after deletion
-        return updated_list, updated_df, gr.update(choices=updated_dropdown, value=None), message, gr.update(value=False)
-    
-    delete_file_btn.click(
-        fn=handle_delete,
-        inputs=[selected_filename, delete_confirm_checkbox, files_list_output],
-        outputs=[files_list_output, files_dataframe, selected_filename, delete_status, delete_confirm_checkbox]
-    )
-    
-    # Refresh button for files list
-    refresh_btn = gr.Button("🔄 Refresh Files List", variant="secondary")
+
+    # Refresh Button Logic
     refresh_btn.click(
         fn=update_files_display,
         inputs=None,
         outputs=[files_dataframe, selected_filename, files_list_output]
     )
-    
-    gr.Markdown("### Instructions")
-    gr.Markdown("""
-    1. Click 'Upload CSV File' and select your CSV file
-    2. Click 'Process CSV' to start processing
-    3. Wait for processing to complete
-    4. View the preview of processed data
-    5. Download the processed CSV file from the download section
-    6. All processed files are saved with timestamp in filename
-    """)
 
+    # Download Logic (Archive Tab)
+    def handle_download(filename):
+        if not filename:
+            return None, "### ⚠️ Warning\nPlease select a file first."
+        file_path = download_processed_file(filename)
+        if file_path:
+            return file_path, f"### ✅ Ready\nReady to download: `{filename}`"
+        return None, f"### ❌ Error\nFile `{filename}` not found."
+    
+    download_file_btn.click(
+        fn=handle_download,
+        inputs=selected_filename,
+        outputs=[download_file_output, action_status]
+    )
+
+    # Delete Logic (Archive Tab)
+    def handle_delete(filename, confirm, current_list):
+        if not filename:
+            df, dropdown, _ = update_files_display()
+            return current_list, df, dropdown, "### ⚠️ Warning\nPlease select a file first.", gr.update()
+        
+        if not confirm:
+            df, dropdown, _ = update_files_display()
+            return current_list, df, dropdown, "### ⚠️ Warning\nPlease confirm deletion.", gr.update()
+        
+        updated_list, message = delete_processed_file(filename, confirm)
+        updated_df, updated_dropdown, _ = update_files_display()
+
+        # Reset selection and confirmation
+        return updated_list, updated_df, gr.update(choices=updated_dropdown, value=None), message, gr.update(value=False)
+
+    delete_file_btn.click(
+        fn=handle_delete,
+        inputs=[selected_filename, delete_confirm_checkbox, files_list_output],
+        outputs=[files_list_output, files_dataframe, selected_filename, action_status, delete_confirm_checkbox]
+    )
 
 if __name__ == "__main__":
     server_name = os.environ.get("GRADIO_SERVER_NAME", "0.0.0.0")
@@ -484,6 +487,6 @@ if __name__ == "__main__":
         share=False,
         server_name=server_name,
         server_port=server_port,
-        theme=gr.themes.Soft(),
+        theme=theme,
         css=custom_css
     )
